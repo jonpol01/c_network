@@ -13,6 +13,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <signal.h>
 
 //static int list = [];
 static int list[255];
@@ -35,6 +36,7 @@ void printarray (int arg[], int length) {
 
 int main(int argc, char *argv[])
 {
+     signal(SIGCHLD,SIG_IGN);
      int sockfd, newsockfd, portno, pid;
      socklen_t clilen;
      struct sockaddr_in serv_addr, cli_addr;
@@ -90,6 +92,7 @@ int main(int argc, char *argv[])
 void dostuff (int sock)
 {
    int n;
+   int a = 0;
    char buffer[256];
 
    while(1){   
@@ -99,6 +102,11 @@ void dostuff (int sock)
     printf("Here is the message: %s\n",buffer);
     if(n >= 0){
         n = write(sock,"cmd$> ",6);
+        if(i > 1){
+            for(a = 0; a < i; a++){
+                n = write(list[a], buffer, 256);
+            }
+        }
     }
     if (n < 0) error("ERROR writing to socket");
    }

@@ -27,6 +27,7 @@ PRIVATE UINT st_list[255];			//Socket list array
 PRIVATE UINT st_i = 0;				//Socket list count
 PRIVATE UINT st_count = 0;
 BYTE c_Data[256];					//Client to Child data buffer
+BYTE c_buff[256];					//Client to Child data buffer
 size_t size_buff;					//size of data buffer
 
 void dostuff(int);			//function prototype
@@ -141,18 +142,17 @@ void dostuff (int sock){
 void dostuff_cmd (int sock){
 
 	int n, a = 0;
-	char buffer[256];
 
 	while(1){
-		bzero(buffer,256);
-		n = read(sock,buffer,255);
+		bzero(c_buff,256);
+		n = read(sock,c_buff,255);
 		if (n < 0) error("ERROR reading from socket");
-		printf("Here is the message: %s\n",buffer);
+		printf("Here is the message: %s\n",c_buff);
 		if(n >= 0){
 			n = write(sock,"cmd$> ",6);
 			if(st_i > 1){
 				for(a = 0; a < st_i; a++){
-				   n = write(st_list[a], buffer, 256);
+				   n = write(st_list[a], c_buff, 256);
 				}
 			}
 		}
@@ -288,9 +288,9 @@ void dostuff_Relay (int proc){
 	if(proc == 1){
 
 		/* Write request first */
-		bzero(buffer,256);
-		sprintf(buffer, "data");
-		n = write(sockfd, buffer, strlen(buffer));
+		bzero(c_buff,256);
+		sprintf(c_buff, "data");
+		n = write(sockfd, c_buff, strlen(c_buff));
 		if (n < 0) error("ERROR writing to socket");
 
 		/* Write data to server buffer */

@@ -193,7 +193,7 @@ void dostuff_traffic (int proc, int id){
 		/* tell the traffic server that we logged in together with its PID */
 		bzero(c_buff,1024);
 		sprintf(c_buff, "logged,%d", getpid());
-		n = write(sockfd, buffer, strlen(c_buff));
+		n = write(sockfd, c_buff, strlen(c_buff));
 		if (n < 0) error("ERROR writing to socket");
 
 		/* Close the socket */

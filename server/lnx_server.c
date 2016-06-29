@@ -44,6 +44,24 @@ void dostuff_cmd(INT);		//function Cmd
 void dostuff_traffic(INT,INT);	//function Update Client count
 void dostuff_Relay(INT);	//function
 
+/******** error() *********************
+Exit when error occurs.
+ *****************************************/
+void error(const char *msg){
+	perror(msg);		//do process error
+	exit(1);			//exit
+}
+
+/******** printarray() *********************
+Print array for debugging.
+ *****************************************/
+void printarray (INT arg[], INT length) {
+	for (n=0; n<length; ++n){
+		printf("%d ", arg[n]);
+	}
+	printf("\n");
+}
+
 /******** main() *********************
 Main loop.
  *****************************************/

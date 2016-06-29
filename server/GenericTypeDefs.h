@@ -270,22 +270,3 @@ typedef union
 #undef __EXTENSION
 
 #endif /* __GENERIC_TYPE_DEFS_H_ */
-
-/******** error() *********************
-Exit when error occurs.
- *****************************************/
-void error(const char *msg){
-	perror(msg);		//do process error
-	exit(1);			//exit
-}
-
-/******** printarray() *********************
-Print array for debugging.
- *****************************************/
-void printarray (INT arg[], INT length) {
-	for (n=0; n<length; ++n){
-		printf("%d ", arg[n]);
-	}
-	printf("\n");
-}
-

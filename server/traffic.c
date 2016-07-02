@@ -7,8 +7,7 @@
 
 	A simple server in the internet domain using TCP
 	The port number is passed as an argument 
-	This version runs forever, forking off a separate 
-	process for each connection
+	This version runs forever
  *******************************************************/
 #include <stdio.h>
 #include <unistd.h>
@@ -23,11 +22,13 @@
 #include <signal.h>
 #include "GenericTypeDefs.h"		//Generic Type Definitions
 
-#define TRAFFIC_SERVER_PORT	atoi(argv[1])	//Traffic handler Tcp port
-
-static INT st_list[255];			//Socket list array
-static INT st_i = 0;				//Socket list count
-char uc_list[255];
+#define TRAFFIC_SERVER_PORT		(atoi(argv[1]))	//Traffic handler Tcp port
+PRIVATE INT st_Pid_list[255];			//Socket list array
+PRIVATE INT st_PidData_list[255][2];		//Socket list array
+PRIVATE INT st_i = 0;				//Socket list count
+CHAR8 c_Data[255];					//Client to Server data buffer
+CHAR8 c_buff[255];					//local buffer
+CHAR8 c_Pid_list[255];
 
 /******** error() *********************
 Exit when error occurs.
@@ -58,9 +59,10 @@ int main(int argc, char *argv[])
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
 	int n, a = 0;
-	char buffer[255];
+//	char buffer[255];
+//	char buff_check[255];
 
-	memset(st_list, 0x00, 255);
+	memset(st_Pid_list, 0x00, 255);
 	if (argc < 2) {
 		fprintf(stderr,"ERROR, no port provided\n");
 		exit(1);
@@ -85,37 +87,65 @@ int main(int argc, char *argv[])
 			 error("ERROR on accept");
 //        printf("Client connected: Address: %s Pid: %d\n", inet_ntoa(cli_addr.sin_addr), newsockfd);
 		while(1){
-			bzero(buffer,255);
-			n = read(newsockfd,buffer,255);
+			bzero(c_buff,255);
+			n = read(newsockfd,c_buff,255);
 			if (n < 0) error("ERROR reading from socket");
-			if(strncmp(buffer, "logged", 6) == 0){
+			if(strncmp(c_buff, "logged", 6) == 0){
 
-				strncpy(uc_list, &buffer[7], strlen(buffer) - 7);
-				st_list[st_i] = atoi(uc_list);
-//				printf("st_list: %d uc_list: %s\n", st_list[st_i], uc_list);
+//				memcpy(&st_Pid_list[st_i], atoi(&buffer[7]), strlen(buffer) - 7);
+				strncpy(&c_Pid_list[st_i], &c_buff[7], strlen(c_buff) - 7);
+//				strncpy(c_Pid_list, &buffer[7], strlen(buffer) - 7);
+				st_Pid_list[st_i] = atoi(&c_Pid_list[st_i]);
 				st_i++;
-				printf("(traffic_P) Child has updated client count to %d with its PID: %s\n", st_i, buffer);
+				printf("(traffic_P) Child has updated client count to %d with its PID: %s\n", st_i, c_buff);
 				printf("(traffic_P) Child PID list:\n");
-				printarray(st_list, st_i);
+				printarray(st_Pid_list, st_i);
 
-			}else if(strncmp(buffer, "get", 3) == 0){
+			}else if(strncmp(c_buff, "get", 3) == 0){
 
 				printf("(traffic_P) Child has write request on buffer\n");
 
-//				bzero(buffer,256);
-//				sprintf(buffer, "%d", st_i);
-//				n = write(newsockfd, buffer, 256);
-//				if (n < 0) error("ERROR writing to socket");
-
-				n = write(newsockfd, uc_list, 256);
+				n = write(newsockfd, c_Pid_list, 256);
 				if (n < 0) error("ERROR writing to socket");
 				printf("(traffic_P) Done!\n");
 
-			}else{
+			}else if(strncmp(c_buff, "write", 5) == 0){
 
-				if(n > 0){
-					printf("(traffic) buffer is %s\n", buffer);
+				int		i;
+				bool	i_Pid_match = false;
+				char	c_buff_Pid[255];
+				char	c_buff_Pid_Chk[255];
+				size_t	size_Pid;
+				size_t	size_buff = strlen(c_buff);
+
+				printf("(traffic_P) DATA: %s len: %ld\n", c_buff, size_buff);
+				bzero(c_buff_Pid_Chk,255);
+				strncpy(c_buff_Pid_Chk, &c_buff[6], strlen(c_buff) - 7);
+				for(i = 0; i < st_i; i++){
+					sprintf(c_buff_Pid, "%d", st_Pid_list[i]);
+					size_Pid = strlen(c_buff_Pid);
+					if(strncmp(c_buff_Pid_Chk, c_buff_Pid, size_Pid) == 0){
+						printf("(traffic_P) PID Matched found %s to %s\n", c_buff_Pid, c_buff_Pid_Chk);
+						i_Pid_match = 1;
+						break;
+					}else{
+						printf("(traffic_P) No PID Matched on the list %s to %s\n", c_buff_Pid, c_buff_Pid_Chk);
+						i_Pid_match = 0;
+					}
 				}
+
+				if(i_Pid_match >= 1){
+					printf("(traffic_P) PID match Flag is %d and i: %d\n", i_Pid_match, i);
+				}
+//				sprintf(c_buff, "%c", (char)st_Pid_list[st_i]);
+//				size_t	size_buff = strlen(c_buff);
+//				printf("c_buff: %c\n", c_buff);
+//				if(strncmp(&c_buff[6], c_buff, size_buff) == 0){
+//					printf("pid list: %s buffer: %s\n", c_buff, &c_buff[6]);
+//				}else{
+//					printf("pid list: %s buffer: %s\n", c_buff, &c_buff[6]);
+//					error("error cmp\n");
+//				}
 
 			}
 			if(n > 0){

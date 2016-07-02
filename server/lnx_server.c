@@ -9,6 +9,8 @@
 	The port number is passed as an argument 
 	This version runs forever, forking off a separate 
 	process for each connection
+
+usage: bash$./<name>.o <port #>		ex: bash$./lnx_server.o 50000
  *******************************************************/
 #include <stdio.h>
 #include <unistd.h>
@@ -23,7 +25,7 @@
 #include <signal.h>
 #include "GenericTypeDefs.h"		//Generic Type Definitions
 
-#define MAIN_SERVER_PORT	atoi(argv[1])	//Our Main server Tcp Port
+#define MAIN_SERVER_PORT	(atoi(argv[1]))	//Our Main server Tcp Port
 #define TRAFFIC_SERVER_PORT	50010	//Traffic handler Tcp port
 #define RELAY_SERVER_PORT	50020	//Relay server Tcp Port
 #define CH_LOGGED		1
@@ -32,8 +34,7 @@
 
 PRIVATE UINT st_list[255];			//Socket list array
 PRIVATE UINT st_i = 0;				//Socket list count
-PRIVATE UINT st_count = 0;
-CHAR8 c_Data[255];					//Client to Child data buffer
+CHAR8 c_Data[255];					//Client to Child Server data buffer
 CHAR8 c_buff[1024];					//local buffer
 INT n, a = 0;						//int worker
 
@@ -144,6 +145,7 @@ void dostuff (int sock){
 		if(n > 0){
 			size_buff = strlen(c_Data);	//size of string buffer
 			printf("(Child %d) Here is the message: %s\n", sock, c_Data);
+			dostuff_traffic(3, sock);
 
 			//sprintf(c_buff, "%d,%s", sock, c_Data);
 			//if(size_buff > 0){
@@ -192,8 +194,8 @@ void dostuff_traffic (int proc, int id){
 
 		/* tell the traffic server that we logged in together with its PID */
 		bzero(c_buff,1024);
-		sprintf(c_buff, "logged,%d", getpid());
-		n = write(sockfd, c_buff, strlen(c_buff));
+		size_buff = sprintf(c_buff, "logged,%d", getpid());
+		n = write(sockfd, c_buff, size_buff);
 		if (n < 0) error("ERROR writing to socket");
 
 		/* Close the socket */
@@ -205,14 +207,14 @@ void dostuff_traffic (int proc, int id){
 
 		/* Write request first */
 		bzero(c_buff,1024);
-		sprintf(c_buff, "get");
-		n = write(sockfd, c_buff, strlen(c_buff));
+		size_buff = sprintf(c_buff, "get");
+		n = write(sockfd, c_buff, size_buff);
 		if (n < 0) error("ERROR writing to socket");
 
 		/* Write data to server buffer */
 		bzero(c_buff,1024);
-		sprintf(c_buff, "%d", id);
-		n = write(sockfd, c_buff, strlen(c_buff));
+		size_buff = sprintf(c_buff, "%d", id);
+		n = write(sockfd, c_buff, size_buff);
 		if (n < 0) error("ERROR writing to socket");
 
 		/* Close the socket */
@@ -223,10 +225,11 @@ void dostuff_traffic (int proc, int id){
 	}else if(proc == 3){
 
 		/* Write data */
-		bzero(c_buff,255);
-		sprintf(c_buff, "write,%s", c_Data);
-		n = write(sockfd, c_buff, strlen(c_buff));
+		bzero(c_buff,1024);
+		size_buff = sprintf(c_buff, "write,%d!%s", getpid(), c_Data);
+		n = write(sockfd, c_buff, size_buff);
 		if (n < 0) error("ERROR writing to socket");
+		bzero(c_Data,255);
 
 		/* Close the socket */
 		close(sockfd);
@@ -254,27 +257,13 @@ void dostuff_Relay (int proc){
 
 	/* connect with server's socket */
 	int res = connect(sockfd, (struct sockaddr *) &serv_addr, sizeof(serv_addr));
-	
+
 	/* If failed we exit the function */
 	if(res == -1){
 		exit(1);
 	};
 
 	if(proc == 1){
-
-		/* Write request first */
-		bzero(c_buff,256);
-		sprintf(c_buff, "data");
-		n = write(sockfd, c_buff, strlen(c_buff));
-		if (n < 0) error("ERROR writing to socket");
-
-		/* Write data to server buffer */
-		n = write(sockfd, c_Data, strlen(c_Data));
-		if (n < 0) error("ERROR writing to socket");
-
-		/* Close the socket */
-		close(sockfd);
-		return;
 
 	}
 }

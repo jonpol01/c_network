@@ -8,6 +8,8 @@
 	A simple server in the internet domain using TCP
 	The port number is passed as an argument 
 	This version runs forever
+
+usage: bash$./<name>.o <port #>		ex: bash$./traffic.o 50010
  *******************************************************/
 #include <iostream>
 #include <stdio.h>
@@ -122,16 +124,17 @@ int main(int argc, char *argv[])
 				
 				//printf("(traffic_P) DATA: %s len: %ld\n", c_buff, size_buff);
 				bzero(c_buff_Pid_Chk,255);
-				strncpy(c_buff_Pid_Chk, &c_buff[6], strlen(c_buff) - 7);
+				strncpy(c_buff_Pid_Chk, &c_buff[6], (size_buff - 7));
 				for(i = 0; i < st_i; i++){
 					sprintf(c_buff_Pid, "%d", st_Pid_list[i]);
 					size_Pid = strlen(c_buff_Pid);
 					if(strncmp(c_buff_Pid_Chk, c_buff_Pid, size_Pid) == 0){
-						size_Data = size_buff - (7 + strlen(c_buff_Pid));
+						size_Data = size_buff - (6 + strlen(c_buff_Pid));
 						strncpy(c_Data, &c_buff[7 + strlen(c_buff_Pid)], size_Data);
 						printf("(traffic_P) PID Matched found %s to %s Data: %s\n", c_buff_Pid, c_buff_Pid_Chk, c_Data);
 //						sprintf(st_PidData_list,, c_buff_Pid, c_Data);
 						i_Pid_match = true;
+						bzero(c_Data,255);
 						break;
 					}else{
 						//printf("(traffic_P) No PID Matched on the list %s to %s\n", c_buff_Pid, c_buff_Pid_Chk);

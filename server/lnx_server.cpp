@@ -1,5 +1,5 @@
 /******************************************************* 
-	lnx_server.c
+	lnx_server.cpp
 	c_network
 
 	Created by John Paul Soliva on 6/19/16.

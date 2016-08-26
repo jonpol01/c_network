@@ -23,15 +23,23 @@ usage: bash$./<name>.o <port #>		ex: bash$./traffic.o 50010
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <signal.h>
+#include <fcntl.h>
 #include "GenericTypeDefs.h"		//Generic Type Definitions
 
-#define TRAFFIC_SERVER_PORT		(atoi(argv[1]))	//Traffic handler Tcp port
-PRIVATE INT st_Pid_list[255];			//Socket list array
-PRIVATE INT st_PidData_list[255][2];		//Socket list array
+#define TRAFFIC_SERVER_PORT				(atoi(argv[1]))	//Traffic handler Tcp port
+#define BUFF_PID_Pos					6
+#define BUFF_DATA_Pos					(7 + strlen(c_buff_Pid))
+#define	DATA_Page						256
+#define	LIST_PID_POS					0
+#define	LIST_DATA_POS					1
+
+PRIVATE INT st_Pid_list[DATA_Page];			//Socket list array
 PRIVATE INT st_i = 0;				//Socket list count
-CHAR8 c_Data[255];					//Client to Server data buffer
-CHAR8 c_buff[255];					//local buffer
-CHAR8 c_Pid_list[255];
+INT n, a = 0;
+CHAR8 c_PidData_list[DATA_Page*4][DATA_Page*4][DATA_Page];		//Socket Data on [PID][Data] Array
+CHAR8 c_Pid_list[DATA_Page];
+CHAR8 c_Data[DATA_Page];					//Client to Server data buffer
+CHAR8 c_buff[DATA_Page];					//local buffer
 
 /******** error() *********************
 Exit when error occurs.
@@ -57,15 +65,17 @@ Main loop.
  *****************************************/
 int main(int argc, char *argv[])
 {
-    signal(SIGCHLD,SIG_IGN);
+	signal(SIGCHLD,SIG_IGN);
 	int sockfd, newsockfd, portno, pid;
 	socklen_t clilen;
 	struct sockaddr_in serv_addr, cli_addr;
-	int n, a = 0;
-//	char buffer[255];
-//	char buff_check[255];
+	bool	i_Pid_match = false;
 
-	memset(st_Pid_list, 0x00, 255);
+	memset(st_Pid_list, 0x00, DATA_Page);
+	memset(c_Pid_list, 0x00, DATA_Page);
+	memset(c_Data, 0x00, DATA_Page);
+	memset(c_buff, 0x00, DATA_Page);
+
 	if (argc < 2) {
 		fprintf(stderr,"ERROR, no port provided\n");
 		exit(1);
@@ -84,66 +94,74 @@ int main(int argc, char *argv[])
 	listen(sockfd,5);
 	clilen = sizeof(cli_addr);
 	while (1) {
-		newsockfd = accept(sockfd, 
-			(struct sockaddr *) &cli_addr, &clilen);
+		newsockfd = accept(sockfd, (struct sockaddr *) &cli_addr, &clilen);
+		fcntl(newsockfd, F_SETFL, O_NONBLOCK);
+
 		if (newsockfd < 0)
 			 error("ERROR on accept");
-//        printf("Client connected: Address: %s Pid: %d\n", inet_ntoa(cli_addr.sin_addr), newsockfd);
+        //printf("Client connected: Address: %s Pid: %d\n", inet_ntoa(cli_addr.sin_addr), newsockfd);
 		while(1){
-			bzero(c_buff,255);
-			n = read(newsockfd,c_buff,255);
-			if (n < 0) error("ERROR reading from socket");
+			bzero(c_buff,DATA_Page);
+			n = read(newsockfd,c_buff,DATA_Page);
+//			if (n < 0) error("ERROR reading from socket");
+
+			if(n < 0){
+				printf("test\n");
+
+				int i;
+//				if(i_Pid_match == true){
+					bzero(c_buff,DATA_Page);
+					for(i = 0; i < st_i; i++){
+						sprintf(c_buff,"%s,%s", &c_PidData_list[i][LIST_PID_POS][0], &c_PidData_list[i][LIST_DATA_POS][0]);
+						printf("(traffic_P) send buffer: %s st_i: %d\n", c_buff, st_i);				
+						n = write(newsockfd, c_buff, DATA_Page);
+						if (n < 0) error("ERROR writing to socket");
+					}
+					bzero(c_buff,DATA_Page);
+					i_Pid_match = false;
+//				}
+			}
+
 			if(strncmp(c_buff, "logged", 6) == 0){
 
-//				memcpy(&st_Pid_list[st_i], atoi(&buffer[7]), strlen(buffer) - 7);
 				strncpy(&c_Pid_list[st_i], &c_buff[7], strlen(c_buff) - 7);
-//				strncpy(c_Pid_list, &buffer[7], strlen(buffer) - 7);
 				st_Pid_list[st_i] = atoi(&c_Pid_list[st_i]);
 				st_i++;
 				printf("(traffic_P) Child has updated client count to %d with its PID: %s\n", st_i, c_buff);
 				printf("(traffic_P) Child PID list:\n");
 				printarray(st_Pid_list, st_i);
 
-			}else if(strncmp(c_buff, "get", 3) == 0){
-
-				printf("(traffic_P) Child has write request on buffer\n");
-
-				n = write(newsockfd, c_Pid_list, 256);
-				if (n < 0) error("ERROR writing to socket");
-				printf("(traffic_P) Done!\n");
-
-			}else if(strncmp(c_buff, "write", 5) == 0){
+			}else if(strncmp(c_buff, "write", 5) == 0 && n > 0){
 
 				int		i;
-				bool	i_Pid_match = false;
-				char	c_buff_Pid[255];
-				char	c_buff_Pid_Chk[255];
-				size_t	size_buff = strlen(c_buff);
+				char	c_buff_Pid[DATA_Page];
+				char	c_buff_Pid_Chk[DATA_Page];
+				size_t	size_buff = strlen(c_buff) - 1;
 				size_t	size_Pid;
 				size_t	size_Data;
-				
-				//printf("(traffic_P) DATA: %s len: %ld\n", c_buff, size_buff);
-				bzero(c_buff_Pid_Chk,255);
-				strncpy(c_buff_Pid_Chk, &c_buff[6], (size_buff - 7));
+
+				printf("(traffic_P) DATA: %s len: %ld\n", c_buff, size_buff);
+				bzero(c_buff_Pid_Chk,DATA_Page);
+				strncpy(c_buff_Pid_Chk, &c_buff[6], (size_buff - BUFF_PID_Pos));
 				for(i = 0; i < st_i; i++){
 					sprintf(c_buff_Pid, "%d", st_Pid_list[i]);
 					size_Pid = strlen(c_buff_Pid);
 					if(strncmp(c_buff_Pid_Chk, c_buff_Pid, size_Pid) == 0){
-						size_Data = size_buff - (6 + strlen(c_buff_Pid));
+						size_Data = size_buff - BUFF_DATA_Pos;
 						strncpy(c_Data, &c_buff[7 + strlen(c_buff_Pid)], size_Data);
-						printf("(traffic_P) PID Matched found %s to %s Data: %s\n", c_buff_Pid, c_buff_Pid_Chk, c_Data);
-//						sprintf(st_PidData_list,, c_buff_Pid, c_Data);
+						sprintf(&c_PidData_list[i][0][0], "%s", c_buff_Pid);
+						sprintf(&c_PidData_list[i][1][0], "%s", c_Data);
 						i_Pid_match = true;
-						bzero(c_Data,255);
+						bzero(c_buff_Pid,DATA_Page);
+						bzero(c_Data,DATA_Page);
 						break;
 					}else{
-						//printf("(traffic_P) No PID Matched on the list %s to %s\n", c_buff_Pid, c_buff_Pid_Chk);
 						i_Pid_match = false;
 					}
 				}
 
 				if(i_Pid_match >= 1){
-					printf("(traffic_P) PID match Flag is %d and i: %d\n", i_Pid_match, i);
+//					printf("(traffic_P) PID match Flag is %d and i: %d\n PID: %s data: %s\n", i_Pid_match, i, &c_PidData_list[i][0][0], &c_PidData_list[i][1][0]);
 				}
 //				sprintf(c_buff, "%c", (char)st_Pid_list[st_i]);
 //				size_t	size_buff = strlen(c_buff);
@@ -154,10 +172,11 @@ int main(int argc, char *argv[])
 //					printf("pid list: %s buffer: %s\n", c_buff, &c_buff[6]);
 //					error("error cmp\n");
 //				}
-
+//			}else if(strncmp(c_buff, "get", 3) == 0){
 			}
+			
 			if(n > 0){
-				close(newsockfd);
+//				close(newsockfd);
 				break;
 			}
 		}

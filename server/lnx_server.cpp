@@ -130,7 +130,7 @@ int main(INT argc, CHAR8 *argv[]){
 		if (pid < 0)
 			error("ERROR on fork");
 		if (pid == 0) {
-//			printf("(Parent)Client connected: Address: %s Pid: %d\n", inet_ntoa(cli_addr.sin_addr), getpid());
+			printf("(Parent)Client connected: Address: %s Pid: %d\n", inet_ntoa(cli_addr.sin_addr), getpid());
 			close(sockfd);
 			dostuff(newsockfd);
 			exit(0);

@@ -14,7 +14,7 @@ int main ()
   if (buffer==NULL) exit (1);
 
   for (n=0; n<i; n++)
-    buffer[n]=rand()%26+'a';
+    buffer[n]=rand()%26+'A';
   buffer[i]='\0';
 
   printf ("Random string: %s\n",buffer);

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <sstream>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -11,6 +12,7 @@
 #include <netdb.h>
 #include <signal.h>
 #include <fcntl.h>
+
 //#include "GenericTypeDefs.h" //Generic Type Definitions
 
 #define MAIN_SERVER_PORT (atoi(argv[1])) //Our Main server Tcp Port
@@ -27,21 +29,24 @@ namespace Pathfinder
 class server
 {
   public:
-    uint st_list[DATA_Page]; //Socket list array
-    uint st_i;           //Socket list count
-    char c_Data[DATA_Page];         //Client to Child Server data buffer
-    char c_buff[DATA_Page * 4];     //local buffer
+    uint st_list[DATA_Page];    //Socket list array
+    uint st_i;                  //Socket list count
+    char c_Data[DATA_Page];     //Client to Child Server data buffer
+    char c_buff[DATA_Page * 4]; //local buffer
 
     size_t size_buff; //size of data buffer
 
-    void dostuff(const int);         //function prototype
-    void dostuff_cmd(const int);     //function Cmd
-    void dostuff_traffic(const int); //function Update Client count
-    void dostuff_Relay(const int);   //function
+    void dostuff(const int, const char *); //function prototype
+    void dostuff_cmd(const int);           //function Cmd
+    void dostuff_traffic(const int);       //function Update Client count
+    void dostuff_Relay(const int);         //function
 
-    void error(const char*);
+    void error(const char *);
+    void cl_off(const char *);
     void p_read(const int);
-    void p_write(const int, const char*);
+    void p_write(const int, const char *);
+
+  private:
 };
 
 /******** error() *********************
@@ -53,7 +58,16 @@ void server::error(const char *msg)
     exit(1);     //exit
 }
 
-/******** printarray() *********************
+/******** cl_off() *********************
+*Exit when client disconnect.
+*****************************************/
+void server::cl_off(const char *msg)
+{
+    printf("(Client:%s) has disconnected.\n",msg); //do process error
+    exit(1);     //exit
+}
+
+/******** printarray() *****************
 *Print array for debugging.
 *****************************************/
 /*void printarray (INT arg[], INT length) {
@@ -71,8 +85,8 @@ void server::p_read(const int sockfd)
     int n = 0;
     bzero(c_buff, DATA_Page * 4);
     n = read(sockfd, c_buff, DATA_Page * 4);
-//    if (n < 0)
-        //error("ERROR writing to socket");
+    //    if (n < 0)
+    //error("ERROR writing to socket");
 }
 
 void server::p_write(const int sockfd, const char *data)
@@ -81,8 +95,50 @@ void server::p_write(const int sockfd, const char *data)
     bzero(c_buff, DATA_Page * 4);
     size_buff = sprintf(c_buff, "%s", data);
     n = write(sockfd, c_buff, size_buff);
-//    if (n < 0)
-        //error("ERROR writing to socket");
+    //    if (n < 0)
+    //error("ERROR writing to socket");
+}
+
+/******** DOSTUFF() *********************
+ There is a separate instance of this function 
+ for each connection.  It handles all communication
+ once a connnection has been established.
+ *****************************************/
+void server::dostuff(const int sock, const char *ip)
+{
+
+    int n, a = 0;
+
+    /* SEND a Logged in signal with its PID */
+    //dostuff_traffic(CH_LOGGED);
+    //error("got here!");
+    /* Process Traffice loop */
+    while (1)
+    {
+        bzero(c_Data, DATA_Page);          //clear buffer
+        n = read(sock, c_Data, DATA_Page); //initiate read
+        if (n == 0)
+        {
+//            std::ostringstream tmp;
+//            tmp << "test: " << ip;
+//            std::string var = tmp.str();
+//            const char * cl_ip = &var[0];
+            cl_off(ip); //exit when failed
+        }
+        if (n > 0)
+        {
+            size_buff = strlen(c_Data); //size of string buffer
+            printf("(Client:%s) debug message: %s", ip, c_Data);
+            n = write(sock, c_buff, size_buff);
+            //            if (n < 0)
+            //                error("ERROR writing to socket");
+            //			dostuff_traffic(CH_WRITE);
+        }
+
+        //if(n < 0) dostuff_traffic(CH_READ);
+
+        //		if (n < 0) error("ERROR writing to socket");
+    }
 }
 
 /******** dostuff_traffic() *********************
@@ -97,8 +153,8 @@ void server::dostuff_traffic(const int proc)
 
     /* Setup a socket */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
-//    if (sockfd < 0)
-        //error("child: ERROR opening socket");
+    //    if (sockfd < 0)
+    //error("child: ERROR opening socket");
     bzero((char *)&serv_addr, sizeof(serv_addr));
     portno = TRAFFIC_SERVER_PORT; //tcp port 50010
     serv_addr.sin_family = AF_INET;
@@ -121,8 +177,8 @@ void server::dostuff_traffic(const int proc)
         bzero(c_buff, 1024);
         size_buff = sprintf(c_buff, "logged,%d", getpid());
         n = write(sockfd, c_buff, size_buff);
- //       if (n < 0)
-            //error("ERROR writing to socket");
+        //       if (n < 0)
+        //error("ERROR writing to socket");
         /* Close the socket */
         //close(sockfd);
         return;
@@ -138,8 +194,8 @@ void server::dostuff_traffic(const int proc)
             //read(sockfd);
             bzero(c_buff, DATA_Page * 4);
             n = read(sockfd, c_buff, DATA_Page * 4);
-   //         if (n < 0)
-                //error("ERROR writing to socket");
+            //         if (n < 0)
+            //error("ERROR writing to socket");
             if (strlen(c_buff) <= 1)
             {
                 break;
@@ -160,8 +216,8 @@ void server::dostuff_traffic(const int proc)
         bzero(c_buff, DATA_Page * 4);
         size_buff = sprintf(c_buff, "write,%d!%s", getpid(), c_Data);
         n = write(sockfd, c_buff, size_buff);
-  //      if (n < 0)
-            //error("ERROR writing to socket");
+        //      if (n < 0)
+        //error("ERROR writing to socket");
         bzero(c_Data, DATA_Page);
 
         /* Close the socket */

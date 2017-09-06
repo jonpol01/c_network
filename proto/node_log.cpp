@@ -1,5 +1,5 @@
 /******************************************************* 
-	lnx_server.cpp
+	renamed from lnx_server.cpp to node_log.cpp
 	c_network
 
 	Created by John Paul Soliva on 6/19/16.
@@ -20,7 +20,7 @@ Namespace
 *****************************************/
 namespace Pathfinder
 {
-
+    
 } //end namespace
 
 
@@ -29,10 +29,12 @@ Main loop.
  *****************************************/
 int main(int argc, char *argv[])
 {
+    using namespace std;
+
     Pathfinder::server serv;
     int n, a = 0;
     int sockfd, newsockfd, portno, pid;
-    char *ip_val;
+    CHAR8 *ip_val;
 
     signal(SIGCHLD, SIG_IGN);
     socklen_t clilen;
@@ -51,14 +53,13 @@ int main(int argc, char *argv[])
     /* Open a socket to bind & listen to */
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-        serv.error("ERROR opening socket");
+        serv.error("ERROR opening socket"); 
     bzero((char *)&serv_addr, sizeof(serv_addr));
     portno = MAIN_SERVER_PORT;
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
-    if (bind(sockfd, (struct sockaddr *)&serv_addr,
-             sizeof(serv_addr)) < 0)
+    if (bind(sockfd, (struct sockaddr *)&serv_addr,sizeof(serv_addr)) < 0)
         serv.error("ERROR on binding");
     listen(sockfd, 5);
 
@@ -80,15 +81,14 @@ int main(int argc, char *argv[])
         {
             ip_val = inet_ntoa(cli_addr.sin_addr);
             printf("(Parent)Client connected: Address: %s Pid: %d\n", ip_val, getpid() - 1);
+            cout << "test" ;
             close(sockfd);
             serv.dostuff(newsockfd, ip_val);
             //			dostuff_cmd(newsockfd);
-            exit(0);
+           exit(0);
         }
-        //else close(newsockfd);
+            //else close(newsockfd);
     } /* end of while */
     close(sockfd);
     return 0; /* we never get here */
 }
-
-

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <errno.h>
 #include <string.h>
 #include <sstream>
@@ -13,7 +14,7 @@
 #include <signal.h>
 #include <fcntl.h>
 
-//#include "GenericTypeDefs.h" //Generic Type Definitions
+#include "GenericTypeDefs.h" //Generic Type Definitions
 
 #define MAIN_SERVER_PORT (atoi(argv[1])) //Our Main server Tcp Port
 #define TRAFFIC_SERVER_PORT 50010        //Traffic handler Tcp port
@@ -25,73 +26,81 @@
 
 namespace Pathfinder
 {
+using namespace std;
 
 class server
 {
   public:
     uint st_list[DATA_Page];    //Socket list array
     uint st_i;                  //Socket list count
-    char c_Data[DATA_Page];     //Client to Child Server data buffer
-    char c_buff[DATA_Page * 4]; //local buffer
+    CHAR8 c_Data[DATA_Page];     //Client to Child Server data buffer
+    CHAR8 c_buff[DATA_Page * 4]; //local buffer
 
     size_t size_buff; //size of data buffer
 
-    void dostuff(const int, const char *); //function prototype
-    void dostuff_cmd(const int);           //function Cmd
-    void dostuff_traffic(const int);       //function Update Client count
-    void dostuff_Relay(const int);         //function
+    void dostuff(const uint16_t, const CHAR8 *); //function prototype
+    void dostuff_cmd(const int8_t);           //function Cmd
+    void dostuff_traffic(const int8_t);       //function Update Client count
+    void dostuff_Relay(const int8_t);         //function
 
-    void error(const char *);
-    void cl_off(const char *);
-    void p_read(const int);
-    void p_write(const int, const char *);
+    void error(const CHAR8 *);
+    void cl_off(const CHAR8 *);
+    int8_t p_read(const int8_t, const CHAR8 *);
+    void p_write(const int8_t, const CHAR8 *);
 
+    void printarray(const uint8_t, const uint8_t);
   private:
 };
 
-/******** error() *********************
+/******** error() **********************************
 *Exit when error occurs.
-*****************************************/
-void server::error(const char *msg)
+***************************************************/
+void server::error(const CHAR8 *msg)
 {
     perror(msg); //do process error
     exit(1);     //exit
 }
 
-/******** cl_off() *********************
+/******** cl_off() *********************************
 *Exit when client disconnect.
-*****************************************/
-void server::cl_off(const char *msg)
+***************************************************/
+void server::cl_off(const CHAR8 *msg)
 {
-    printf("(Client:%s) has disconnected.\n",msg); //do process error
-    exit(1);     //exit
+    cout << "(Client:" << msg << ") has disconnected.\n"; //do process error
+    exit(1); //exit
 }
 
-/******** printarray() *****************
+/******** printarray() *****************************
 *Print array for debugging.
-*****************************************/
-/*void printarray (INT arg[], INT length) {
-        for (n=0; n<length; ++n){
-            printf("%d ", arg[n]);
-        }
-        printf("\n");
-    }*/
+***************************************************/
+void printarray (const uint8_t arg[], const int8_t length) {
+    uint8_t n;
+    for (n=0; n<length; ++n){
+        cout << arg[n] << endl;
+    }
+    cout << "\n";
+}
 
-/******** read() & write() *********************
-*Basic Data transmission
-*****************************************/
-void server::p_read(const int sockfd)
+/******** p_read() & p_write() *********************
+* Basic Data transmission
+* Child function.., this runs after a fork() 
+***************************************************/
+int8_t server::p_read(const int8_t sockfd, const CHAR8 *ip)
 {
-    int n = 0;
+    int8_t n = 0;
     bzero(c_buff, DATA_Page * 4);
     n = read(sockfd, c_buff, DATA_Page * 4);
-    //    if (n < 0)
-    //error("ERROR writing to socket");
+    if (n > 0)
+    {
+        size_buff = strlen(c_buff); //size of string buffer
+        cout << "(Client: " << ip << ") " << "debug message: " << c_buff;
+    }
+    return(n);
 }
 
-void server::p_write(const int sockfd, const char *data)
+void server::p_write(const int8_t sockfd, const CHAR8 *data)
 {
-    int n = 0;
+    int8_t n = 0;
     bzero(c_buff, DATA_Page * 4);
     size_buff = sprintf(c_buff, "%s", data);
     n = write(sockfd, c_buff, size_buff);
@@ -99,52 +108,30 @@ void server::p_write(const int sockfd, const char *data)
     //error("ERROR writing to socket");
 }
 
-/******** DOSTUFF() *********************
+/******** DOSTUFF() ********************************
  There is a separate instance of this function 
  for each connection.  It handles all communication
  once a connnection has been established.
- *****************************************/
-void server::dostuff(const int sock, const char *ip)
+ **************************************************/
+void server::dostuff(const uint16_t sock, const CHAR8 *ip)
 {
-
     int n, a = 0;
-
-    /* SEND a Logged in signal with its PID */
-    //dostuff_traffic(CH_LOGGED);
-    //error("got here!");
     /* Process Traffice loop */
     while (1)
     {
-        bzero(c_Data, DATA_Page);          //clear buffer
-        n = read(sock, c_Data, DATA_Page); //initiate read
+        bzero(c_buff, DATA_Page);          //clear buffer
+        n = p_read(sock, ip);
         if (n == 0)
         {
-//            std::ostringstream tmp;
-//            tmp << "test: " << ip;
-//            std::string var = tmp.str();
-//            const char * cl_ip = &var[0];
             cl_off(ip); //exit when failed
         }
-        if (n > 0)
-        {
-            size_buff = strlen(c_Data); //size of string buffer
-            printf("(Client:%s) debug message: %s", ip, c_Data);
-            n = write(sock, c_buff, size_buff);
-            //            if (n < 0)
-            //                error("ERROR writing to socket");
-            //			dostuff_traffic(CH_WRITE);
-        }
-
-        //if(n < 0) dostuff_traffic(CH_READ);
-
-        //		if (n < 0) error("ERROR writing to socket");
     }
 }
 
 /******** dostuff_traffic() *********************
 *Client to Traffic server handler.
 *****************************************/
-void server::dostuff_traffic(const int proc)
+void server::dostuff_traffic(const int8_t proc)
 {
     int n, a = 0;
     int sockfd, newsockfd, portno;
